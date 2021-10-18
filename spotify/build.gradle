@@ -1,0 +1,36 @@
+plugins {
+    id 'com.android.application'
+    id 'kotlin-android'
+}
+
+android {
+    compileSdkVersion 28
+
+    defaultConfig {
+        minSdkVersion 14
+        targetSdkVersion 30
+        versionCode 1
+        versionName "0.1"
+    }
+
+    buildTypes {
+        debug {
+            minifyEnabled true
+        }
+
+        release {
+            minifyEnabled true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+}
+
+dependencies {
+    implementation project(path: ':plugin')
+    implementation 'xyz.gianlu.librespot:librespot-lib:1.6.1'
+    implementation 'uk.uuid.slf4j:slf4j-android:1.7.30-0'
+}
+
+repositories {
+    mavenCentral()
+}
