@@ -55,41 +55,45 @@ class SpotifyApi(private val appContext: Context, private val context: Context) 
     }
 
     fun getReleaseRadar(refresh: Boolean): List<MediaMetadataCompat> {
-        var response = request(RELEASE_RADAR_URL, refresh, "playlists")
-        val id = response.getJSONArray("items").getJSONObject(0).getString("id")
-        response = request(String.format(PLAYLIST_URL, id), refresh, "tracks")
-        return parseTracks(response.getJSONArray("items"))
+        val response = JSONObject(request(RELEASE_RADAR_URL, "GET").value)
+        val id = response.getJSONObject("playlists").getJSONArray("items").getJSONObject(0).getString("id")
+        val items = request(String.format(PLAYLIST_URL, id), refresh, "tracks")
+        return parseTracks(items)
     }
 
     fun getUsersSavedTracks(refresh: Boolean): List<MediaMetadataCompat> {
-        val response = request(USERS_SAVED_TRACKS_URL, refresh)
-        return parseTracks(response.getJSONArray("items"))
+        val items = request(USERS_SAVED_TRACKS_URL, refresh)
+        return parseTracks(items)
     }
 
     fun query(query: String, refresh: Boolean): List<MediaMetadataCompat> {
-        val response = request(String.format(QUERY_URL, query), refresh,"tracks")
-        return parseTracks(response.getJSONArray("items"))
+        val items = request(String.format(QUERY_URL, query), refresh, "tracks")
+        return parseTracks(items)
     }
 
-    private fun request(url: String, refresh: Boolean, type: String? = null): JSONObject {
-        if (session == null) {
-            createSession()
-        }
-        val request: String = if (!refresh && url in nextQueryUrls) {
+    private fun request(url: String, refresh: Boolean, type: String? = null): JSONArray {
+        val request = if (!refresh && url in nextQueryUrls) {
+            if (nextQueryUrls[url] == "null") {
+                return JSONArray()
+            }
             nextQueryUrls[url].toString()
         } else {
             url
         }
-        var response = JSONObject(WebRequests.request(request, "GET", mapOf("Authorization" to token())).value)
+        var response = JSONObject(request(request, "GET").value)
         if (type != null) {
             response = response.getJSONObject(type)
         }
         nextQueryUrls[url] = response.getString("next")
-        return response
+        return response.getJSONArray("items")
     }
 
     private fun parseTracks(items: JSONArray): List<MediaMetadataCompat> {
         val result = mutableListOf<MediaMetadataCompat>()
+        if (items.length() == 0) {
+            return result
+        }
+
         for (i in 0 until items.length()) {
             var item = items.getJSONObject(i)
             if (item.has("track")) {
@@ -129,6 +133,13 @@ class SpotifyApi(private val appContext: Context, private val context: Context) 
         }
         stream.`in`.stream().close()
         return BufferedMediaDataSource(bos.toByteArray())
+    }
+
+    private fun request(url: String, method: String): WebRequests.Response {
+        if (session == null) {
+            createSession()
+        }
+        return WebRequests.request(url, method, mapOf("Authorization" to token()))
     }
 
     class BufferedMediaDataSource(private val buffer: ByteArray) : MediaDataSource() {
