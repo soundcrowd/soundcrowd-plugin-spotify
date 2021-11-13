@@ -7,6 +7,7 @@ import android.content.Context
 import android.content.SharedPreferences
 import android.media.MediaDataSource
 import android.support.v4.media.MediaMetadataCompat
+import android.support.v4.media.RatingCompat
 import androidx.preference.PreferenceManager
 import com.spotify.connectstate.Connect
 import com.tiefensuche.soundcrowd.extensions.MediaMetadataCompatExt
@@ -26,6 +27,7 @@ class SpotifyApi(private val appContext: Context, private val context: Context) 
     private var session: Session? = null
     private val nextQueryUrls: HashMap<String, String> = HashMap()
     private var sharedPref: SharedPreferences = PreferenceManager.getDefaultSharedPreferences(appContext)
+    private var savedTrackIds: MutableSet<String> = HashSet()
 
     private fun createSession() {
         val username = sharedPref.getString(context.getString(R.string.username_key), null)
@@ -50,7 +52,7 @@ class SpotifyApi(private val appContext: Context, private val context: Context) 
 
     private fun token(): String {
         session?.let {
-            return "Bearer " + it.tokens().get("user-library-read")
+            return "Bearer " + it.tokens().getToken("user-library-read", "user-library-modify").accessToken
         } ?: throw Exception("No session!")
     }
 
@@ -94,6 +96,7 @@ class SpotifyApi(private val appContext: Context, private val context: Context) 
             return result
         }
 
+        val savedStatus = getTracksSavedStatus(items)
         for (i in 0 until items.length()) {
             var item = items.getJSONObject(i)
             if (item.has("track")) {
@@ -109,9 +112,42 @@ class SpotifyApi(private val appContext: Context, private val context: Context) 
                 .putString(MediaMetadataCompat.METADATA_KEY_MEDIA_URI, item.getString("uri"))
                 .putLong(MediaMetadataCompat.METADATA_KEY_DURATION, item.getLong("duration_ms"))
                 .putString(MediaMetadataCompatExt.METADATA_KEY_TYPE, MediaMetadataCompatExt.MediaType.MEDIA.name)
+                .putRating(MediaMetadataCompatExt.METADATA_KEY_FAVORITE, RatingCompat.newHeartRating(savedStatus.getBoolean(i)))
                 .build())
+
+            if (savedStatus.getBoolean(i)) {
+                savedTrackIds.add(item.getString("uri"))
+            }
         }
         return result
+    }
+
+    private fun getTracksSavedStatus(items: JSONArray): JSONArray {
+        val ids = mutableListOf<String>()
+        for (i in 0 until items.length()) {
+            var item = items.getJSONObject(i)
+            if (item.has("track")) {
+                item = item.getJSONObject("track")
+            }
+            ids.add(item.getString("id"))
+        }
+        return JSONArray(request("$USERS_SAVED_TRACKS_URL/contains?ids=${ids.joinToString(",")}", "GET").value)
+    }
+
+    fun saveTrack(uri: String): Boolean {
+        return try {
+            val exists = savedTrackIds.contains(uri)
+            request("$USERS_SAVED_TRACKS_URL?ids=${uri.substringAfterLast(':')}",
+                if (exists) "DELETE" else "PUT")
+            if (exists) {
+                savedTrackIds.remove(uri)
+            } else {
+                savedTrackIds.add(uri)
+            }
+            true
+        } catch (e: WebRequests.HttpException) {
+            false
+        }
     }
 
     fun streamUri(uri: String): MediaDataSource {

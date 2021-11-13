@@ -56,4 +56,8 @@ class Plugin(appContext: Context, context: Context) : IPlugin {
     override fun getMediaUrl(metadata: MediaMetadataCompat, callback: Callback<Pair<MediaMetadataCompat, MediaDataSource?>>) {
         callback.onResult(Pair(metadata, spotifyApi.streamUri(metadata.getString(MediaMetadataCompat.METADATA_KEY_MEDIA_URI))))
     }
+
+    override fun favorite(id: String, callback: Callback<Boolean>) {
+        callback.onResult(spotifyApi.saveTrack(id))
+    }
 }
