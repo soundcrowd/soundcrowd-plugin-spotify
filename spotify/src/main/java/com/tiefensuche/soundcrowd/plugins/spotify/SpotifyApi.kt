@@ -19,7 +19,7 @@ import xyz.gianlu.librespot.audio.decoders.AudioQuality
 import xyz.gianlu.librespot.audio.decoders.VorbisOnlyAudioQuality
 import xyz.gianlu.librespot.core.Session
 import xyz.gianlu.librespot.metadata.TrackId
-import java.io.ByteArrayOutputStream
+import xyz.gianlu.librespot.player.decoders.SeekableInputStream
 import java.util.*
 
 class SpotifyApi(private val appContext: Context, private val context: Context) {
@@ -162,13 +162,9 @@ class SpotifyApi(private val appContext: Context, private val context: Context) 
                 override fun streamReadHalted(chunk: Int, time: Long) {}
                 override fun streamReadResumed(chunk: Int, time: Long) {}
             })
-        val bos = ByteArrayOutputStream()
-        var cur: Int
-        while (stream.`in`.stream().read().also { cur = it } != -1) {
-            bos.write(cur)
-        }
-        stream.`in`.stream().close()
-        return BufferedMediaDataSource(bos.toByteArray())
+
+        val audioIn = stream.`in`.stream()
+        return SpotifyMediaDataSource(audioIn)
     }
 
     private fun request(url: String, method: String): WebRequests.Response {
@@ -178,26 +174,22 @@ class SpotifyApi(private val appContext: Context, private val context: Context) 
         return WebRequests.request(url, method, mapOf("Authorization" to token()))
     }
 
-    class BufferedMediaDataSource(private val buffer: ByteArray) : MediaDataSource() {
+    class SpotifyMediaDataSource(private val stream: SeekableInputStream) : MediaDataSource() {
+
+        private val pos = stream.position()
+
+        override fun close() {
+            stream.close()
+        }
 
         override fun readAt(position: Long, buffer: ByteArray, offset: Int, size: Int): Int {
-            val position = position.toInt()
-            if (position >= this.buffer.size) {
-                return -1
-            }
-            var size = size
-            if (position + size > this.buffer.size) {
-                size -= (position + size) - this.buffer.size
-            }
-            System.arraycopy(this.buffer, position, buffer, offset, size)
-            return size
+            stream.seek(position.toInt() + pos)
+            return stream.read(buffer, offset, size)
         }
 
         override fun getSize(): Long {
-            return buffer.size.toLong()
+            return stream.size().toLong() - pos
         }
-
-        override fun close() {}
     }
 
     companion object {
