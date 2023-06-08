@@ -23,6 +23,7 @@
 -keep class xyz.gianlu.librespot.** { *; }
 -keep class com.spotify.metadata.** { *; }
 -keep class com.spotify.storage.** { *; }
+-keep class com.spotify.clienttoken.** { *; }
 -keep class android.support.v4.media.** { *; }
 -keep class androidx.preference.** { *; }
 -keep class kotlin.** { *; }
