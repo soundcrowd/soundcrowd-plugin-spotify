@@ -52,7 +52,7 @@ class SpotifyApi(private val appContext: Context, private val context: Context) 
 
     private fun token(): String {
         session?.let {
-            return "Bearer " + it.tokens().getToken("user-library-read", "user-library-modify").accessToken
+            return "Bearer " + it.tokens().getToken("user-library-read", "user-library-modify", "user-follow-read").accessToken
         } ?: throw Exception("No session!")
     }
 
@@ -65,6 +65,26 @@ class SpotifyApi(private val appContext: Context, private val context: Context) 
 
     fun getUsersSavedTracks(refresh: Boolean): List<MediaMetadataCompat> {
         val items = request(USERS_SAVED_TRACKS_URL, refresh)
+        return parseTracks(items)
+    }
+
+    fun getArtists(refresh: Boolean): List<MediaMetadataCompat> {
+        val items = request(USERS_FOLLOWING, refresh, "artists")
+        return parsePlaylists(items)
+    }
+
+    fun getArtist(id: String, refresh: Boolean): List<MediaMetadataCompat> {
+        val items = request(ARTIST_TRACKS.format(id), refresh, "tracks")
+        return parseTracks(items)
+    }
+
+    fun getUsersPlaylists(refresh: Boolean): List<MediaMetadataCompat> {
+        val items = request(USERS_PLAYLISTS, refresh)
+        return parsePlaylists(items)
+    }
+
+    fun getPlaylist(id: String, refresh: Boolean): List<MediaMetadataCompat> {
+        val items = request(String.format(PLAYLIST_URL, id), refresh, "tracks")
         return parseTracks(items)
     }
 
@@ -83,10 +103,12 @@ class SpotifyApi(private val appContext: Context, private val context: Context) 
             url
         }
         var response = JSONObject(request(request, "GET").value)
-        if (type != null) {
+        if (type != null && response.get(type) is JSONObject) {
             response = response.getJSONObject(type)
         }
-        nextQueryUrls[url] = response.getString("next")
+        nextQueryUrls[url] = if (response.has("next")) response.getString("next") else "null"
+        if (type != null && response.has(type))
+            return response.getJSONArray(type)
         return response.getJSONArray("items")
     }
 
@@ -118,6 +140,27 @@ class SpotifyApi(private val appContext: Context, private val context: Context) 
             if (savedStatus.getBoolean(i)) {
                 savedTrackIds.add(item.getString("uri"))
             }
+        }
+        return result
+    }
+
+    private fun parsePlaylists(items: JSONArray): List<MediaMetadataCompat> {
+        val result = mutableListOf<MediaMetadataCompat>()
+        for (i in 0 until items.length()) {
+            val item = items.getJSONObject(i)
+            println(item)
+            result.add(MediaMetadataCompat.Builder()
+                .putString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID, item.getString("id"))
+                .putString(MediaMetadataCompat.METADATA_KEY_TITLE, item.getString("name"))
+                .putString(MediaMetadataCompat.METADATA_KEY_ARTIST, "")
+                .putString(MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI, item.getJSONArray("images").let {
+                    if (it.length() == 0)
+                        ""
+                    else
+                        it.getJSONObject(0).getString("url")
+                })
+                .putString(MediaMetadataCompatExt.METADATA_KEY_TYPE, MediaMetadataCompatExt.MediaType.STREAM.name)
+                .build())
         }
         return result
     }
@@ -196,7 +239,9 @@ class SpotifyApi(private val appContext: Context, private val context: Context) 
         private const val BASE_URL = "https://api.spotify.com/v1"
         private const val QUERY_URL = "$BASE_URL/search?q=%s&type=track"
         private const val USERS_SAVED_TRACKS_URL = "$BASE_URL/me/tracks"
-        private const val NEW_RELEASES_URL = "$BASE_URL/browse/new-releases"
+        private const val USERS_FOLLOWING = "$BASE_URL/me/following?type=artist"
+        private const val ARTIST_TRACKS = "$BASE_URL/artists/%s/top-tracks?market=US"
+        private const val USERS_PLAYLISTS = "$BASE_URL/me/playlists"
         private const val RELEASE_RADAR_URL = "$BASE_URL/search?q=Release-Radar&type=playlist&limit=1"
         private const val PLAYLIST_URL = "$BASE_URL/playlists/%s"
     }

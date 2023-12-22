@@ -36,14 +36,28 @@ class Plugin(appContext: Context, context: Context) : IPlugin {
 
     override fun name() = "Spotify"
 
-    override fun mediaCategories(): List<String> = listOf("Release Radar", "Saved Tracks")
+    override fun mediaCategories(): List<String> = listOf("Artists", "Saved Tracks", "Playlists", "Release Radar")
 
     override fun preferences(): List<Preference> = listOf(editTextUsername, editTextPassword)
 
     override fun getMediaItems(mediaCategory: String, callback: Callback<List<MediaMetadataCompat>>, refresh: Boolean) {
         when (mediaCategory) {
-            "Release Radar" -> callback.onResult(spotifyApi.getReleaseRadar(refresh))
+            "Artists" -> callback.onResult(spotifyApi.getArtists(refresh))
             "Saved Tracks" -> callback.onResult(spotifyApi.getUsersSavedTracks(refresh))
+            "Playlists" -> callback.onResult(spotifyApi.getUsersPlaylists(refresh))
+            "Release Radar" -> callback.onResult(spotifyApi.getReleaseRadar(refresh))
+        }
+    }
+
+    override fun getMediaItems(
+        mediaCategory: String,
+        path: String,
+        callback: Callback<List<MediaMetadataCompat>>,
+        refresh: Boolean
+    ) {
+        when (mediaCategory) {
+            "Artists" -> callback.onResult(spotifyApi.getArtist(path, refresh))
+            "Playlists" -> callback.onResult(spotifyApi.getPlaylist(path, refresh))
         }
     }
 
