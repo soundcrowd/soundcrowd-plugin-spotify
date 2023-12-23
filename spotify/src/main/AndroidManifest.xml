@@ -1,2 +1,16 @@
-<manifest package="com.tiefensuche.soundcrowd.plugins.spotify" />
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    package="com.tiefensuche.soundcrowd.plugins.spotify">
 
+    <application>
+        <provider
+            android:name="com.tiefensuche.soundcrowd.plugins.spotify.Plugin"
+            android:authorities="com.tiefensuche.soundcrowd.plugins.spotify"
+            android:exported="true"
+            tools:ignore="Instantiatable">
+            <intent-filter>
+                <action android:name="com.tiefensuche.soundcrowd.plugins" />
+            </intent-filter>
+        </provider>
+    </application>
+</manifest>
