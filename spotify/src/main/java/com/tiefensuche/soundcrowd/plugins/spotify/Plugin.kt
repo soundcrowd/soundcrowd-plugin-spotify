@@ -15,6 +15,14 @@ import com.tiefensuche.soundcrowd.plugins.IPlugin
 
 class Plugin(appContext: Context, context: Context) : IPlugin {
 
+    companion object {
+        const val name = "Spotify"
+        const val TRACKS = "Tracks"
+        const val ARTISTS = "Artists"
+        const val PLAYLISTS = "Playlists"
+        const val RELEASES = "Release Radar"
+    }
+
     private val spotifyApi: SpotifyApi = SpotifyApi(appContext, context)
     private val icon: Bitmap = BitmapFactory.decodeResource(context.resources, R.drawable.plugin_icon)
     private val editTextUsername = EditTextPreference(appContext)
@@ -34,18 +42,18 @@ class Plugin(appContext: Context, context: Context) : IPlugin {
         editTextPassword.dialogMessage = context.getString(R.string.password_dialog_message)
     }
 
-    override fun name() = "Spotify"
+    override fun name() = name
 
-    override fun mediaCategories(): List<String> = listOf("Artists", "Saved Tracks", "Playlists", "Release Radar")
+    override fun mediaCategories(): List<String> = listOf(TRACKS, ARTISTS, PLAYLISTS, RELEASES)
 
     override fun preferences(): List<Preference> = listOf(editTextUsername, editTextPassword)
 
     override fun getMediaItems(mediaCategory: String, callback: Callback<List<MediaMetadataCompat>>, refresh: Boolean) {
         when (mediaCategory) {
-            "Artists" -> callback.onResult(spotifyApi.getArtists(refresh))
-            "Saved Tracks" -> callback.onResult(spotifyApi.getUsersSavedTracks(refresh))
-            "Playlists" -> callback.onResult(spotifyApi.getUsersPlaylists(refresh))
-            "Release Radar" -> callback.onResult(spotifyApi.getReleaseRadar(refresh))
+            ARTISTS -> callback.onResult(spotifyApi.getArtists(refresh))
+            TRACKS -> callback.onResult(spotifyApi.getUsersSavedTracks(refresh))
+            PLAYLISTS -> callback.onResult(spotifyApi.getUsersPlaylists(refresh))
+            RELEASES -> callback.onResult(spotifyApi.getReleaseRadar(refresh))
         }
     }
 
@@ -56,8 +64,8 @@ class Plugin(appContext: Context, context: Context) : IPlugin {
         refresh: Boolean
     ) {
         when (mediaCategory) {
-            "Artists" -> callback.onResult(spotifyApi.getArtist(path, refresh))
-            "Playlists" -> callback.onResult(spotifyApi.getPlaylist(path, refresh))
+            ARTISTS -> callback.onResult(spotifyApi.getArtist(path, refresh))
+            PLAYLISTS -> callback.onResult(spotifyApi.getPlaylist(path, refresh))
         }
     }
 
