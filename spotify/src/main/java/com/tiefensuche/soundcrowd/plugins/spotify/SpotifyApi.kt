@@ -148,19 +148,18 @@ class SpotifyApi(private val appContext: Context, private val context: Context) 
         val result = mutableListOf<MediaMetadataCompat>()
         for (i in 0 until items.length()) {
             val item = items.getJSONObject(i)
-            println(item)
             result.add(MediaMetadataCompat.Builder()
                 .putString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID, item.getString("id"))
                 .putString(MediaMetadataCompat.METADATA_KEY_TITLE, item.getString("name"))
                 .putString(MediaMetadataCompat.METADATA_KEY_ARTIST, "")
-                .putString(MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI, item.getJSONArray("images").let {
-                    if (it.length() == 0)
-                        ""
-                    else
-                        it.getJSONObject(0).getString("url")
-                })
+                .putString(
+                    MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI,
+                    if (item.isNull("images") || item.getJSONArray("images").length() == 0) ""
+                    else item.getJSONArray("images").getJSONObject(0).getString("url")
+                )
                 .putString(MediaMetadataCompatExt.METADATA_KEY_TYPE, MediaMetadataCompatExt.MediaType.STREAM.name)
-                .build())
+                .build()
+            )
         }
         return result
     }
