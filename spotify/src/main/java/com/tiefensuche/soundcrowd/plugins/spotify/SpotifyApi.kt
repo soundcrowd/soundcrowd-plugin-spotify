@@ -59,7 +59,7 @@ class SpotifyApi(private val appContext: Context, private val context: Context) 
     fun getReleaseRadar(refresh: Boolean): List<MediaMetadataCompat> {
         val response = JSONObject(request(RELEASE_RADAR_URL, "GET").value)
         val id = response.getJSONObject("playlists").getJSONArray("items").getJSONObject(0).getString("id")
-        val items = request(String.format(PLAYLIST_URL, id), refresh, "tracks")
+        val items = request(String.format(PLAYLIST_URL, id), refresh)
         return parseTracks(items)
     }
 
@@ -84,7 +84,7 @@ class SpotifyApi(private val appContext: Context, private val context: Context) 
     }
 
     fun getPlaylist(id: String, refresh: Boolean): List<MediaMetadataCompat> {
-        val items = request(String.format(PLAYLIST_URL, id), refresh, "tracks")
+        val items = request(String.format(PLAYLIST_URL, id), refresh)
         return parseTracks(items)
     }
 
@@ -242,6 +242,6 @@ class SpotifyApi(private val appContext: Context, private val context: Context) 
         private const val ARTIST_TRACKS = "$BASE_URL/artists/%s/top-tracks?market=US"
         private const val USERS_PLAYLISTS = "$BASE_URL/me/playlists"
         private const val RELEASE_RADAR_URL = "$BASE_URL/search?q=Release-Radar&type=playlist&limit=1"
-        private const val PLAYLIST_URL = "$BASE_URL/playlists/%s"
+        private const val PLAYLIST_URL = "$BASE_URL/playlists/%s/tracks?limit=50"
     }
 }
