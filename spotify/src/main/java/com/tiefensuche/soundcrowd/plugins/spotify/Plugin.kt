@@ -20,10 +20,12 @@ class Plugin(appContext: Context, context: Context) : IPlugin {
 
     companion object {
         const val name = "Spotify"
+        const val CATEGORIES = "Categories"
         const val TRACKS = "Tracks"
         const val ARTISTS = "Artists"
+        const val ALBUMS = "Albums"
         const val PLAYLISTS = "Playlists"
-        const val RELEASES = "Release Radar"
+        const val SHOWS = "Shows"
     }
 
     private val api = SpotifyApi(appContext, context)
@@ -50,16 +52,18 @@ class Plugin(appContext: Context, context: Context) : IPlugin {
 
     override fun name() = name
 
-    override fun mediaCategories(): List<String> = listOf(TRACKS, ARTISTS, PLAYLISTS, RELEASES)
+    override fun mediaCategories(): List<String> = listOf(CATEGORIES, TRACKS, ARTISTS, ALBUMS, PLAYLISTS, SHOWS)
 
     override fun preferences(): List<Preference> = listOf(connectPreference)
 
     override fun getMediaItems(mediaCategory: String, callback: Callback<List<MediaMetadataCompat>>, refresh: Boolean) {
         when (mediaCategory) {
-            ARTISTS -> callback.onResult(api.getArtists(refresh))
+            CATEGORIES -> callback.onResult(api.getCategories(refresh))
             TRACKS -> callback.onResult(api.getUsersSavedTracks(refresh))
+            ARTISTS -> callback.onResult(api.getArtists(refresh))
+            ALBUMS -> callback.onResult(api.getAlbums(refresh))
             PLAYLISTS -> callback.onResult(api.getUsersPlaylists(refresh))
-            RELEASES -> callback.onResult(api.getReleaseRadar(refresh))
+            SHOWS -> callback.onResult(api.getShows(refresh))
         }
     }
 
@@ -70,8 +74,11 @@ class Plugin(appContext: Context, context: Context) : IPlugin {
         refresh: Boolean
     ) {
         when (mediaCategory) {
+            CATEGORIES -> callback.onResult(api.getCategoryPlaylist(path, refresh))
             ARTISTS -> callback.onResult(api.getArtist(path, refresh))
+            ALBUMS -> callback.onResult(api.getAlbumTracks(path, refresh))
             PLAYLISTS -> callback.onResult(api.getPlaylist(path, refresh))
+            SHOWS -> callback.onResult(api.getEpisodes(path, refresh))
         }
     }
 

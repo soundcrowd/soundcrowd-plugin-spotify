@@ -8,8 +8,11 @@ import android.media.MediaDataSource
 import android.support.v4.media.MediaMetadataCompat
 import android.support.v4.media.RatingCompat
 import com.tiefensuche.soundcrowd.extensions.MediaMetadataCompatExt
-import com.tiefensuche.soundcrowd.extensions.WebRequests
+import com.tiefensuche.spotify.api.Album
+import com.tiefensuche.spotify.api.Category
+import com.tiefensuche.spotify.api.Episode
 import com.tiefensuche.spotify.api.Playlist
+import com.tiefensuche.spotify.api.Show
 import com.tiefensuche.spotify.api.SpotifyApi
 import com.tiefensuche.spotify.api.Track
 import xyz.gianlu.librespot.audio.decoders.AudioQuality
@@ -17,6 +20,7 @@ import xyz.gianlu.librespot.audio.decoders.VorbisOnlyAudioQuality
 import xyz.gianlu.librespot.core.OAuth
 import xyz.gianlu.librespot.core.Session
 import xyz.gianlu.librespot.mercury.MercuryRequests.KEYMASTER_CLIENT_ID
+import xyz.gianlu.librespot.metadata.EpisodeId
 import xyz.gianlu.librespot.metadata.TrackId
 import xyz.gianlu.librespot.player.decoders.SeekableInputStream
 import java.io.File
@@ -32,6 +36,7 @@ class SpotifyApi(private val appContext: Context, private val context: Context) 
     private var session: Session? = null
     internal val credentialsFile = File(appContext.filesDir.path + "/credentials.json")
     internal val oauth = OAuth(KEYMASTER_CLIENT_ID, "soundcrowd://127.0.0.1/login")
+    private val albumTracks = HashMap<String, List<Track>>()
 
     private fun createSession() {
         val conf = Session.Configuration.Builder()
@@ -61,8 +66,8 @@ class SpotifyApi(private val appContext: Context, private val context: Context) 
         } ?: throw IllegalStateException("No session!")
     }
 
-    fun getReleaseRadar(refresh: Boolean): List<MediaMetadataCompat> {
-        return parseTracks(api.getReleaseRadar(refresh))
+    fun getCategories(refresh: Boolean): List<MediaMetadataCompat> {
+        return parseCategories(api.getBrowseCategories(refresh))
     }
 
     fun getUsersSavedTracks(refresh: Boolean): List<MediaMetadataCompat> {
@@ -77,12 +82,34 @@ class SpotifyApi(private val appContext: Context, private val context: Context) 
         return parseTracks(api.getArtist(id, refresh))
     }
 
+    fun getAlbums(refresh: Boolean): List<MediaMetadataCompat> {
+        return parseAlbums(api.getUsersSavedAlbums(refresh))
+    }
+
+    fun getAlbumTracks(id: String, refresh: Boolean): List<MediaMetadataCompat> {
+        return albumTracks[id]?.let { parseTracks(it) } ?: emptyList()
+    }
+
     fun getUsersPlaylists(refresh: Boolean): List<MediaMetadataCompat> {
         return parsePlaylists(api.getUsersPlaylists(refresh))
     }
 
+    fun getCategoryPlaylist(path: String, refresh: Boolean): List<MediaMetadataCompat> {
+        if (path.contains('/'))
+            return parseTracks(api.getPlaylist(path.substringAfter('/'), false))
+        return parsePlaylists(api.getCategoryPlaylists(path, refresh))
+    }
+
     fun getPlaylist(id: String, refresh: Boolean): List<MediaMetadataCompat> {
         return parseTracks(api.getPlaylist(id, refresh))
+    }
+
+    fun getShows(refresh: Boolean): List<MediaMetadataCompat> {
+        return parseShows(api.getUsersSavedShows(refresh))
+    }
+
+    fun getEpisodes(id: String, refresh: Boolean): List<MediaMetadataCompat> {
+        return parseEpisodes(api.getEpisodes(id, refresh))
     }
 
     fun query(query: String, refresh: Boolean): List<MediaMetadataCompat> {
@@ -110,14 +137,67 @@ class SpotifyApi(private val appContext: Context, private val context: Context) 
         }
     }
 
+    private fun parseAlbums(albums: List<Album>): List<MediaMetadataCompat> {
+        return albums.map {
+            albumTracks[it.id] = it.tracks
+            MediaMetadataCompat.Builder()
+                .putString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID, it.id)
+                .putString(MediaMetadataCompat.METADATA_KEY_TITLE, it.title)
+                .putString(MediaMetadataCompat.METADATA_KEY_ARTIST, it.artist)
+                .putString(MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI, it.artwork)
+                .putString(MediaMetadataCompat.METADATA_KEY_MEDIA_URI, it.uri)
+                .putString(MediaMetadataCompatExt.METADATA_KEY_TYPE, MediaMetadataCompatExt.MediaType.STREAM.name)
+                .build()
+        }
+    }
+
     private fun parsePlaylists(playlists: List<Playlist>): List<MediaMetadataCompat> {
         return playlists.map {
             MediaMetadataCompat.Builder()
-                .putString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID, it.uuid)
+                .putString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID, it.id)
                 .putString(MediaMetadataCompat.METADATA_KEY_TITLE, it.title)
                 .putString(MediaMetadataCompat.METADATA_KEY_ARTIST, "")
                 .putString(MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI, it.artwork)
                 .putString(MediaMetadataCompatExt.METADATA_KEY_TYPE, MediaMetadataCompatExt.MediaType.STREAM.name)
+                .build()
+        }
+    }
+
+    private fun parseCategories(categories: List<Category>): List<MediaMetadataCompat> {
+        return categories.map {
+            MediaMetadataCompat.Builder()
+                .putString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID, it.id)
+                .putString(MediaMetadataCompat.METADATA_KEY_TITLE, it.name)
+                .putString(MediaMetadataCompat.METADATA_KEY_ARTIST, "")
+                .putString(MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI, it.artwork)
+                .putString(MediaMetadataCompatExt.METADATA_KEY_TYPE, MediaMetadataCompatExt.MediaType.COLLECTION.name)
+                .build()
+        }
+    }
+
+    private fun parseShows(shows: List<Show>): List<MediaMetadataCompat> {
+        return shows.map {
+            MediaMetadataCompat.Builder()
+                .putString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID, it.id)
+                .putString(MediaMetadataCompat.METADATA_KEY_TITLE, it.title)
+                .putString(MediaMetadataCompat.METADATA_KEY_ARTIST, "")
+                .putString(MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI, it.artwork)
+                .putString(MediaMetadataCompatExt.METADATA_KEY_TYPE, MediaMetadataCompatExt.MediaType.STREAM.name)
+                .build()
+        }
+    }
+
+    private fun parseEpisodes(episodes: List<Episode>): List<MediaMetadataCompat> {
+        return episodes.map {
+            MediaMetadataCompat.Builder()
+                .putString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID, it.id)
+                .putString(MediaMetadataCompat.METADATA_KEY_TITLE, it.title)
+                .putString(MediaMetadataCompat.METADATA_KEY_ARTIST, "")
+                .putString(MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI, it.artwork)
+                .putString(MediaMetadataCompat.METADATA_KEY_MEDIA_URI, it.uri)
+                .putLong(MediaMetadataCompat.METADATA_KEY_DURATION, it.duration)
+                .putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_DESCRIPTION, it.description)
+                .putString(MediaMetadataCompatExt.METADATA_KEY_TYPE, MediaMetadataCompatExt.MediaType.MEDIA.name)
                 .build()
         }
     }
@@ -130,11 +210,16 @@ class SpotifyApi(private val appContext: Context, private val context: Context) 
         if (session == null) {
             createSession()
         }
-        val stream = session!!.contentFeeder().load(
-            TrackId.fromUri(uri),
+        val playableUri = when {
+            uri.startsWith("spotify:track:") -> TrackId.fromUri(uri)
+            uri.startsWith("spotify:episode:") -> EpisodeId.fromUri(uri)
+            else -> throw IllegalArgumentException("Unsupported uri")
+        }
+        val stream = session?.contentFeeder()?.load(
+            playableUri,
             VorbisOnlyAudioQuality(AudioQuality.HIGH),
             true,
-            null)
+            null) ?: throw IllegalStateException("No session!")
 
         val audioIn = stream.`in`.stream()
         return SpotifyMediaDataSource(audioIn)
