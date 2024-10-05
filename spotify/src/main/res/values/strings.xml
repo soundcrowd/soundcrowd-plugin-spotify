@@ -1,12 +1,5 @@
 <resources>
-    <string name="plugin_name">Spotify</string>
-    <string name="username_key">spotify_username</string>
-    <string name="username_title">Username</string>
-    <string name="username_summary">Your username on Spotify</string>
-    <string name="username_dialog_message">Enter your username on Spotify</string>
-    <string name="password_key">spotify_password</string>
-    <string name="password_title">Password</string>
-    <string name="password_summary">Your password on Spotify</string>
-    <string name="password_dialog_message">Enter your password on Spotify</string>
-    <string name="device_id_key">spotify_device_id</string>
+    <string name="connect_key">spotify_connect</string>
+    <string name="connect_title">Connect</string>
+    <string name="connect_summary">Connect your Spotify account</string>
 </resources>

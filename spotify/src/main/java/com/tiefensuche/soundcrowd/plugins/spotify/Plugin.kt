@@ -4,12 +4,15 @@
 package com.tiefensuche.soundcrowd.plugins.spotify
 
 import android.content.Context
+import android.content.Intent
+import android.content.Intent.FLAG_ACTIVITY_NEW_TASK
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.media.MediaDataSource
+import android.net.Uri
 import android.support.v4.media.MediaMetadataCompat
-import androidx.preference.EditTextPreference
 import androidx.preference.Preference
+import androidx.preference.SwitchPreference
 import com.tiefensuche.soundcrowd.plugins.Callback
 import com.tiefensuche.soundcrowd.plugins.IPlugin
 
@@ -23,37 +26,40 @@ class Plugin(appContext: Context, context: Context) : IPlugin {
         const val RELEASES = "Release Radar"
     }
 
-    private val spotifyApi: SpotifyApi = SpotifyApi(appContext, context)
-    private val icon: Bitmap = BitmapFactory.decodeResource(context.resources, R.drawable.plugin_icon)
-    private val editTextUsername = EditTextPreference(appContext)
-    private val editTextPassword = EditTextPreference(appContext)
+    private val api = SpotifyApi(appContext, context)
+    private val icon = BitmapFactory.decodeResource(context.resources, R.drawable.plugin_icon)
+    private val connectPreference = SwitchPreference(appContext)
 
     init {
-        editTextUsername.key = context.getString(R.string.username_key)
-        editTextUsername.title = context.getString(R.string.username_title)
-        editTextUsername.summary = context.getString(R.string.username_summary)
-        editTextUsername.dialogTitle = context.getString(R.string.username_title)
-        editTextUsername.dialogMessage = context.getString(R.string.username_dialog_message)
-
-        editTextPassword.key = context.getString(R.string.password_key)
-        editTextPassword.title = context.getString(R.string.password_title)
-        editTextPassword.summary = context.getString(R.string.password_summary)
-        editTextPassword.dialogTitle = context.getString(R.string.password_title)
-        editTextPassword.dialogMessage = context.getString(R.string.password_dialog_message)
+        connectPreference.key = context.getString(R.string.connect_key)
+        connectPreference.title = context.getString(R.string.connect_title)
+        connectPreference.summary = context.getString(R.string.connect_summary)
+        connectPreference.isChecked = api.credentialsFile.exists()
+        connectPreference.onPreferenceChangeListener = Preference.OnPreferenceChangeListener { _, newValue ->
+            if (newValue == true) {
+                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(api.oauth.authUrl))
+                intent.flags = FLAG_ACTIVITY_NEW_TASK
+                appContext.startActivity(intent)
+                false
+            } else {
+                api.credentialsFile.delete()
+                true
+            }
+        }
     }
 
     override fun name() = name
 
     override fun mediaCategories(): List<String> = listOf(TRACKS, ARTISTS, PLAYLISTS, RELEASES)
 
-    override fun preferences(): List<Preference> = listOf(editTextUsername, editTextPassword)
+    override fun preferences(): List<Preference> = listOf(connectPreference)
 
     override fun getMediaItems(mediaCategory: String, callback: Callback<List<MediaMetadataCompat>>, refresh: Boolean) {
         when (mediaCategory) {
-            ARTISTS -> callback.onResult(spotifyApi.getArtists(refresh))
-            TRACKS -> callback.onResult(spotifyApi.getUsersSavedTracks(refresh))
-            PLAYLISTS -> callback.onResult(spotifyApi.getUsersPlaylists(refresh))
-            RELEASES -> callback.onResult(spotifyApi.getReleaseRadar(refresh))
+            ARTISTS -> callback.onResult(api.getArtists(refresh))
+            TRACKS -> callback.onResult(api.getUsersSavedTracks(refresh))
+            PLAYLISTS -> callback.onResult(api.getUsersPlaylists(refresh))
+            RELEASES -> callback.onResult(api.getReleaseRadar(refresh))
         }
     }
 
@@ -64,22 +70,29 @@ class Plugin(appContext: Context, context: Context) : IPlugin {
         refresh: Boolean
     ) {
         when (mediaCategory) {
-            ARTISTS -> callback.onResult(spotifyApi.getArtist(path, refresh))
-            PLAYLISTS -> callback.onResult(spotifyApi.getPlaylist(path, refresh))
+            ARTISTS -> callback.onResult(api.getArtist(path, refresh))
+            PLAYLISTS -> callback.onResult(api.getPlaylist(path, refresh))
         }
     }
 
     override fun getMediaItems(mediaCategory: String, path: String, query: String, callback: Callback<List<MediaMetadataCompat>>, refresh: Boolean) {
-        callback.onResult(spotifyApi.query(query, refresh))
+        callback.onResult(api.query(query, refresh))
     }
 
     override fun getIcon(): Bitmap = icon
 
     override fun getMediaUrl(metadata: MediaMetadataCompat, callback: Callback<Pair<MediaMetadataCompat, MediaDataSource?>>) {
-        callback.onResult(Pair(metadata, spotifyApi.streamUri(metadata.getString(MediaMetadataCompat.METADATA_KEY_MEDIA_URI))))
+        callback.onResult(Pair(metadata, api.streamUri(metadata.getString(MediaMetadataCompat.METADATA_KEY_MEDIA_URI))))
     }
 
     override fun favorite(id: String, callback: Callback<Boolean>) {
-        callback.onResult(spotifyApi.saveTrack(id))
+        callback.onResult(api.saveTrack(id))
     }
+
+    private fun callback(callback: String) {
+        api.oauth.setCode(callback.substringAfterLast('='))
+        connectPreference.isChecked = true
+    }
+
+    override fun callbacks() = mapOf("127.0.0.1" to ::callback)
 }

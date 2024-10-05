@@ -4,50 +4,48 @@
 package com.tiefensuche.soundcrowd.plugins.spotify
 
 import android.content.Context
-import android.content.SharedPreferences
 import android.media.MediaDataSource
 import android.support.v4.media.MediaMetadataCompat
 import android.support.v4.media.RatingCompat
-import androidx.preference.PreferenceManager
-import com.spotify.connectstate.Connect
 import com.tiefensuche.soundcrowd.extensions.MediaMetadataCompatExt
 import com.tiefensuche.soundcrowd.extensions.WebRequests
 import org.json.JSONArray
 import org.json.JSONObject
-import xyz.gianlu.librespot.audio.HaltListener
 import xyz.gianlu.librespot.audio.decoders.AudioQuality
 import xyz.gianlu.librespot.audio.decoders.VorbisOnlyAudioQuality
+import xyz.gianlu.librespot.core.OAuth
 import xyz.gianlu.librespot.core.Session
+import xyz.gianlu.librespot.mercury.MercuryRequests.KEYMASTER_CLIENT_ID
 import xyz.gianlu.librespot.metadata.TrackId
 import xyz.gianlu.librespot.player.decoders.SeekableInputStream
+import java.io.File
 import java.util.*
 
 class SpotifyApi(private val appContext: Context, private val context: Context) {
 
     private var session: Session? = null
+    internal val credentialsFile = File(appContext.filesDir.path + "/credentials.json")
+    internal val oauth = OAuth(KEYMASTER_CLIENT_ID, "soundcrowd://127.0.0.1/login")
     private val nextQueryUrls: HashMap<String, String> = HashMap()
-    private var sharedPref: SharedPreferences = PreferenceManager.getDefaultSharedPreferences(appContext)
     private var savedTrackIds: MutableSet<String> = HashSet()
 
     private fun createSession() {
-        val username = sharedPref.getString(context.getString(R.string.username_key), null)
-        val password = sharedPref.getString(context.getString(R.string.password_key), null)
-        if (username == null || password == null) {
-            throw Exception("Username and/or password missing!")
-        }
         val conf = Session.Configuration.Builder()
-            .setStoreCredentials(false)
+            .setStoreCredentials(true)
+            .setStoredCredentialsFile(credentialsFile)
             .setCacheEnabled(true)
             .setCacheDir(appContext.cacheDir)
             .setConnectionTimeout(30 * 1000)
             .build()
-        val builder = Session.Builder(conf)
-            .setPreferredLocale(Locale.getDefault().language)
-            .setDeviceType(Connect.DeviceType.SMARTPHONE)
-            .setDeviceId(sharedPref.getString(context.getString(R.string.device_id_key), null))
-            .userPass(username, password)
-        session = builder.create()
-        sharedPref.edit().putString(context.getString(R.string.device_id_key), session?.deviceId()).apply()
+
+        session = Session.Builder(conf).let {
+            if (credentialsFile.exists()) {
+                it.stored()
+            } else {
+                oauth.requestToken()
+                it.credentials(oauth.credentials)
+            }
+        }.create()
     }
 
     private fun token(): String {
@@ -200,10 +198,7 @@ class SpotifyApi(private val appContext: Context, private val context: Context) 
             TrackId.fromUri(uri),
             VorbisOnlyAudioQuality(AudioQuality.HIGH),
             true,
-            object : HaltListener {
-                override fun streamReadHalted(chunk: Int, time: Long) {}
-                override fun streamReadResumed(chunk: Int, time: Long) {}
-            })
+            null)
 
         val audioIn = stream.`in`.stream()
         return SpotifyMediaDataSource(audioIn)

@@ -27,4 +27,8 @@
 -keep class android.support.v4.media.** { *; }
 -keep class androidx.preference.** { *; }
 -keep class kotlin.** { *; }
+-dontwarn com.sun.net.httpserver.HttpContext
+-dontwarn com.sun.net.httpserver.HttpExchange
+-dontwarn com.sun.net.httpserver.HttpHandler
+-dontwarn com.sun.net.httpserver.HttpServer
 -dontobfuscate
