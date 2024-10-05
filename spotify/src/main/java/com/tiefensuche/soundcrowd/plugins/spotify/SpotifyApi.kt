@@ -23,7 +23,12 @@ import java.io.File
 
 class SpotifyApi(private val appContext: Context, private val context: Context) {
 
-    private lateinit var api: SpotifyApi
+    private val _api = SpotifyApi()
+    private val api: SpotifyApi
+        get() {
+            _api.token = token()
+            return _api
+        }
     private var session: Session? = null
     internal val credentialsFile = File(appContext.filesDir.path + "/credentials.json")
     internal val oauth = OAuth(KEYMASTER_CLIENT_ID, "soundcrowd://127.0.0.1/login")
@@ -45,14 +50,15 @@ class SpotifyApi(private val appContext: Context, private val context: Context) 
                 it.credentials(oauth.credentials)
             }
         }.create()
-
-        api = SpotifyApi(token())
     }
 
     private fun token(): String {
+        if (session == null) {
+            createSession()
+        }
         session?.let {
             return "Bearer " + it.tokens().getToken("user-library-read", "user-library-modify", "user-follow-read").accessToken
-        } ?: throw Exception("No session!")
+        } ?: throw IllegalStateException("No session!")
     }
 
     fun getReleaseRadar(refresh: Boolean): List<MediaMetadataCompat> {
@@ -132,13 +138,6 @@ class SpotifyApi(private val appContext: Context, private val context: Context) 
 
         val audioIn = stream.`in`.stream()
         return SpotifyMediaDataSource(audioIn)
-    }
-
-    private fun request(url: String, method: String): WebRequests.Response {
-        if (session == null) {
-            createSession()
-        }
-        return WebRequests.request(url, method, mapOf("Authorization" to token()))
     }
 
     class SpotifyMediaDataSource(private val stream: SeekableInputStream) : MediaDataSource() {
