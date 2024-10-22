@@ -27,7 +27,7 @@ android {
 
 dependencies {
     implementation 'com.tiefensuche.soundcrowd:plugin:0.1'
-    implementation('xyz.gianlu.librespot:librespot-lib:1.6.4-SNAPSHOT')
+    implementation 'xyz.gianlu.librespot:librespot-lib:1.6.4'
 }
 
 repositories {
