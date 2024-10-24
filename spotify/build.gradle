@@ -23,6 +23,7 @@ android {
             minifyEnabled true
         }
     }
+    namespace 'com.tiefensuche.soundcrowd.plugins.spotify'
 }
 
 dependencies {
