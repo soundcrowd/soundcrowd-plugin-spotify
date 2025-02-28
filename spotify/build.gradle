@@ -4,11 +4,11 @@ plugins {
 }
 
 android {
-    compileSdkVersion 33
-
     defaultConfig {
-        minSdkVersion 14
-        targetSdkVersion 33
+        namespace 'com.tiefensuche.soundcrowd.plugins.spotify'
+        compileSdk 35
+        minSdk 21
+        targetSdk 35
         versionCode 6
         versionName "0.5.0"
         proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
@@ -18,17 +18,19 @@ android {
         sourceCompatibility JavaVersion.VERSION_17
         targetCompatibility JavaVersion.VERSION_17
     }
+    kotlinOptions {
+        jvmTarget = "17"
+    }
 
     buildTypes {
         debug {
-            minifyEnabled true
+            minifyEnabled false
         }
 
         release {
             minifyEnabled true
         }
     }
-    namespace 'com.tiefensuche.soundcrowd.plugins.spotify'
 }
 
 dependencies {
