@@ -1,0 +1,6 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <string name="connect_key">spotify_connect</string>
+  <string name="connect_title">接続</string>
+  <string name="connect_summary">Spotify アカウントに接続します</string>
+</resources>
