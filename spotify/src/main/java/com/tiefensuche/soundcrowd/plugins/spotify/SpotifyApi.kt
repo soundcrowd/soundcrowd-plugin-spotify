@@ -5,9 +5,11 @@ package com.tiefensuche.soundcrowd.plugins.spotify
 
 import android.content.Context
 import android.media.MediaDataSource
-import android.support.v4.media.MediaMetadataCompat
-import android.support.v4.media.RatingCompat
-import com.tiefensuche.soundcrowd.extensions.MediaMetadataCompatExt
+import android.net.Uri
+import androidx.media3.common.HeartRating
+import androidx.media3.common.MediaItem
+import com.tiefensuche.soundcrowd.plugins.MediaItemUtils
+import com.tiefensuche.soundcrowd.plugins.MediaMetadataCompatExt
 import io.github.tiefensuche.spotify.api.Album
 import io.github.tiefensuche.spotify.api.Category
 import io.github.tiefensuche.spotify.api.Episode
@@ -25,7 +27,7 @@ import xyz.gianlu.librespot.metadata.TrackId
 import xyz.gianlu.librespot.player.decoders.SeekableInputStream
 import java.io.File
 
-class SpotifyApi(private val appContext: Context, private val context: Context) {
+class SpotifyApi(private val context: Context) {
 
     private val _api = SpotifyApi()
     private val api: SpotifyApi
@@ -34,7 +36,7 @@ class SpotifyApi(private val appContext: Context, private val context: Context) 
             return _api
         }
     private var session: Session? = null
-    internal val credentialsFile = File(appContext.filesDir.path + "/credentials.json")
+    internal val credentialsFile = File(context.filesDir.path + "/credentials.json")
     internal val oauth = OAuth(KEYMASTER_CLIENT_ID, "soundcrowd://127.0.0.1/login")
     private val albumTracks = HashMap<String, List<Track>>()
 
@@ -43,7 +45,7 @@ class SpotifyApi(private val appContext: Context, private val context: Context) 
             .setStoreCredentials(true)
             .setStoredCredentialsFile(credentialsFile)
             .setCacheEnabled(true)
-            .setCacheDir(appContext.cacheDir)
+            .setCacheDir(context.cacheDir)
             .setConnectionTimeout(30 * 1000)
             .build()
 
@@ -66,139 +68,134 @@ class SpotifyApi(private val appContext: Context, private val context: Context) 
         } ?: throw IllegalStateException("No session!")
     }
 
-    fun getCategories(refresh: Boolean): List<MediaMetadataCompat> {
+    fun getCategories(refresh: Boolean): List<MediaItem> {
         return parseCategories(api.getBrowseCategories(refresh))
     }
 
-    fun getUsersSavedTracks(refresh: Boolean): List<MediaMetadataCompat> {
+    fun getUsersSavedTracks(refresh: Boolean): List<MediaItem> {
         return parseTracks(api.getUsersSavedTracks(refresh))
     }
 
-    fun getArtists(refresh: Boolean): List<MediaMetadataCompat> {
+    fun getArtists(refresh: Boolean): List<MediaItem> {
         return parsePlaylists(api.getArtists(refresh))
     }
 
-    fun getArtist(id: String, refresh: Boolean): List<MediaMetadataCompat> {
+    fun getArtist(id: String, refresh: Boolean): List<MediaItem> {
         return parseTracks(api.getArtist(id, refresh))
     }
 
-    fun getAlbums(refresh: Boolean): List<MediaMetadataCompat> {
+    fun getAlbums(refresh: Boolean): List<MediaItem> {
         return parseAlbums(api.getUsersSavedAlbums(refresh))
     }
 
-    fun getAlbumTracks(id: String, refresh: Boolean): List<MediaMetadataCompat> {
+    fun getAlbumTracks(id: String, refresh: Boolean): List<MediaItem> {
         return albumTracks[id]?.let { parseTracks(it) } ?: emptyList()
     }
 
-    fun getUsersPlaylists(refresh: Boolean): List<MediaMetadataCompat> {
+    fun getUsersPlaylists(refresh: Boolean): List<MediaItem> {
         return parsePlaylists(api.getUsersPlaylists(refresh))
     }
 
-    fun getCategoryPlaylist(path: String, refresh: Boolean): List<MediaMetadataCompat> {
+    fun getCategoryPlaylist(path: String, refresh: Boolean): List<MediaItem> {
         if (path.contains('/'))
             return parseTracks(api.getPlaylist(path.substringAfter('/'), false))
         return parsePlaylists(api.getCategoryPlaylists(path, refresh))
     }
 
-    fun getPlaylist(id: String, refresh: Boolean): List<MediaMetadataCompat> {
+    fun getPlaylist(id: String, refresh: Boolean): List<MediaItem> {
         return parseTracks(api.getPlaylist(id, refresh))
     }
 
-    fun getShows(refresh: Boolean): List<MediaMetadataCompat> {
+    fun getShows(refresh: Boolean): List<MediaItem> {
         return parseShows(api.getUsersSavedShows(refresh))
     }
 
-    fun getEpisodes(id: String, refresh: Boolean): List<MediaMetadataCompat> {
+    fun getEpisodes(id: String, refresh: Boolean): List<MediaItem> {
         return parseEpisodes(api.getEpisodes(id, refresh))
     }
 
-    fun query(query: String, refresh: Boolean): List<MediaMetadataCompat> {
+    fun query(query: String, refresh: Boolean): List<MediaItem> {
         return parseTracks(api.query(query, refresh))
     }
 
-    private fun parseTracks(tracks: List<Track>): List<MediaMetadataCompat> {
-        val result = mutableListOf<MediaMetadataCompat>()
+    private fun parseTracks(tracks: List<Track>): List<MediaItem> {
+        val result = mutableListOf<MediaItem>()
         if (tracks.isEmpty()) {
             return result
         }
 
         return tracks.map {
-            MediaMetadataCompat.Builder()
-                .putString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID, it.id)
-                .putString(MediaMetadataCompat.METADATA_KEY_TITLE, it.title)
-                .putString(MediaMetadataCompat.METADATA_KEY_ARTIST, it.artist)
-                .putString(MediaMetadataCompat.METADATA_KEY_ALBUM, it.album)
-                .putString(MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI, it.artwork)
-                .putString(MediaMetadataCompat.METADATA_KEY_MEDIA_URI, it.url)
-                .putLong(MediaMetadataCompat.METADATA_KEY_DURATION, it.duration)
-                .putRating(MediaMetadataCompatExt.METADATA_KEY_FAVORITE, RatingCompat.newHeartRating(it.liked))
-                .putString(MediaMetadataCompatExt.METADATA_KEY_TYPE, MediaMetadataCompatExt.MediaType.MEDIA.name)
-                .build()
+            MediaItemUtils.createMediaItem(
+                it.id,
+                Uri.parse(it.url),
+                it.title,
+                it.duration,
+                it.artist,
+                it.album,
+                Uri.parse(it.artwork),
+                rating = HeartRating(it.liked),
+                isDataSource = true
+            )
         }
     }
 
-    private fun parseAlbums(albums: List<Album>): List<MediaMetadataCompat> {
+    private fun parseAlbums(albums: List<Album>): List<MediaItem> {
         return albums.map {
             albumTracks[it.id] = it.tracks
-            MediaMetadataCompat.Builder()
-                .putString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID, it.id)
-                .putString(MediaMetadataCompat.METADATA_KEY_TITLE, it.title)
-                .putString(MediaMetadataCompat.METADATA_KEY_ARTIST, it.artist)
-                .putString(MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI, it.artwork)
-                .putString(MediaMetadataCompat.METADATA_KEY_MEDIA_URI, it.uri)
-                .putString(MediaMetadataCompatExt.METADATA_KEY_TYPE, MediaMetadataCompatExt.MediaType.STREAM.name)
-                .build()
+            MediaItemUtils.createBrowsableItem(
+                it.id,
+                it.title,
+                MediaMetadataCompatExt.MediaType.STREAM,
+                it.artist,
+                artworkUri = Uri.parse(it.artwork),
+            )
         }
     }
 
-    private fun parsePlaylists(playlists: List<Playlist>): List<MediaMetadataCompat> {
+    private fun parsePlaylists(playlists: List<Playlist>): List<MediaItem> {
         return playlists.map {
-            MediaMetadataCompat.Builder()
-                .putString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID, it.id)
-                .putString(MediaMetadataCompat.METADATA_KEY_TITLE, it.title)
-                .putString(MediaMetadataCompat.METADATA_KEY_ARTIST, "")
-                .putString(MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI, it.artwork)
-                .putString(MediaMetadataCompatExt.METADATA_KEY_TYPE, MediaMetadataCompatExt.MediaType.STREAM.name)
-                .build()
+            MediaItemUtils.createBrowsableItem(
+                it.id,
+                it.title,
+                MediaMetadataCompatExt.MediaType.STREAM,
+                artworkUri = Uri.parse(it.artwork),
+            )
         }
     }
 
-    private fun parseCategories(categories: List<Category>): List<MediaMetadataCompat> {
+    private fun parseCategories(categories: List<Category>): List<MediaItem> {
         return categories.map {
-            MediaMetadataCompat.Builder()
-                .putString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID, it.id)
-                .putString(MediaMetadataCompat.METADATA_KEY_TITLE, it.name)
-                .putString(MediaMetadataCompat.METADATA_KEY_ARTIST, "")
-                .putString(MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI, it.artwork)
-                .putString(MediaMetadataCompatExt.METADATA_KEY_TYPE, MediaMetadataCompatExt.MediaType.COLLECTION.name)
-                .build()
+            MediaItemUtils.createBrowsableItem(
+                it.id,
+                it.name,
+                MediaMetadataCompatExt.MediaType.COLLECTION,
+                artworkUri = Uri.parse(it.artwork),
+            )
         }
     }
 
-    private fun parseShows(shows: List<Show>): List<MediaMetadataCompat> {
+    private fun parseShows(shows: List<Show>): List<MediaItem> {
         return shows.map {
-            MediaMetadataCompat.Builder()
-                .putString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID, it.id)
-                .putString(MediaMetadataCompat.METADATA_KEY_TITLE, it.title)
-                .putString(MediaMetadataCompat.METADATA_KEY_ARTIST, "")
-                .putString(MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI, it.artwork)
-                .putString(MediaMetadataCompatExt.METADATA_KEY_TYPE, MediaMetadataCompatExt.MediaType.STREAM.name)
-                .build()
+            MediaItemUtils.createBrowsableItem(
+                it.id,
+                it.title,
+                MediaMetadataCompatExt.MediaType.STREAM,
+                artworkUri = Uri.parse(it.artwork),
+                description = it.description
+            )
         }
     }
 
-    private fun parseEpisodes(episodes: List<Episode>): List<MediaMetadataCompat> {
+    private fun parseEpisodes(episodes: List<Episode>): List<MediaItem> {
         return episodes.map {
-            MediaMetadataCompat.Builder()
-                .putString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID, it.id)
-                .putString(MediaMetadataCompat.METADATA_KEY_TITLE, it.title)
-                .putString(MediaMetadataCompat.METADATA_KEY_ARTIST, "")
-                .putString(MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI, it.artwork)
-                .putString(MediaMetadataCompat.METADATA_KEY_MEDIA_URI, it.uri)
-                .putLong(MediaMetadataCompat.METADATA_KEY_DURATION, it.duration)
-                .putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_DESCRIPTION, it.description)
-                .putString(MediaMetadataCompatExt.METADATA_KEY_TYPE, MediaMetadataCompatExt.MediaType.MEDIA.name)
-                .build()
+            MediaItemUtils.createMediaItem(
+                it.id,
+                Uri.parse(it.uri),
+                it.title,
+                it.duration,
+                artworkUri = Uri.parse(it.artwork),
+                isDataSource = true
+            )
         }
     }
 

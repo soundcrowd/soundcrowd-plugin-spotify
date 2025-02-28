@@ -19,16 +19,14 @@
 # If you keep the line number information, uncomment this to
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
--keep class com.tiefensuche.soundcrowd.plugins.** { *; }
+-keep class com.tiefensuche.soundcrowd.plugins.spotify.Plugin { *; }
 -keep class xyz.gianlu.librespot.** { *; }
 -keep class com.spotify.metadata.** { *; }
 -keep class com.spotify.storage.** { *; }
 -keep class com.spotify.clienttoken.** { *; }
--keep class android.support.v4.media.** { *; }
--keep class androidx.preference.** { *; }
--keep class kotlin.** { *; }
+-keep class org.json.** { *; }
 -dontwarn com.sun.net.httpserver.HttpContext
 -dontwarn com.sun.net.httpserver.HttpExchange
 -dontwarn com.sun.net.httpserver.HttpHandler
 -dontwarn com.sun.net.httpserver.HttpServer
--dontobfuscate
+-dontwarn java.lang.invoke.StringConcatFactory

@@ -10,16 +10,15 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.media.MediaDataSource
 import android.net.Uri
-import android.support.v4.media.MediaMetadataCompat
+import androidx.media3.common.MediaItem
 import androidx.preference.Preference
 import androidx.preference.SwitchPreference
-import com.tiefensuche.soundcrowd.plugins.Callback
 import com.tiefensuche.soundcrowd.plugins.IPlugin
 
-class Plugin(appContext: Context, context: Context) : IPlugin {
+class Plugin(context: Context) : IPlugin {
 
     companion object {
-        const val name = "Spotify"
+        const val NAME = "Spotify"
         const val CATEGORIES = "Categories"
         const val TRACKS = "Tracks"
         const val ARTISTS = "Artists"
@@ -28,20 +27,20 @@ class Plugin(appContext: Context, context: Context) : IPlugin {
         const val SHOWS = "Shows"
     }
 
-    private val api = SpotifyApi(appContext, context)
-    private val icon = BitmapFactory.decodeResource(context.resources, R.drawable.plugin_icon)
-    private val connectPreference = SwitchPreference(appContext)
+    private val api = SpotifyApi(context)
+    private val icon = BitmapFactory.decodeResource(context.resources, R.drawable.icon_plugin_spotify)
+    private val connectPreference = SwitchPreference(context)
 
     init {
-        connectPreference.key = context.getString(R.string.connect_key)
-        connectPreference.title = context.getString(R.string.connect_title)
-        connectPreference.summary = context.getString(R.string.connect_summary)
+        connectPreference.key = context.getString(R.string.spotify_connect_key)
+        connectPreference.title = context.getString(R.string.spotify_connect_title)
+        connectPreference.summary = context.getString(R.string.spotify_connect_summary)
         connectPreference.isChecked = api.credentialsFile.exists()
         connectPreference.onPreferenceChangeListener = Preference.OnPreferenceChangeListener { _, newValue ->
             if (newValue == true) {
                 val intent = Intent(Intent.ACTION_VIEW, Uri.parse(api.oauth.authUrl))
                 intent.flags = FLAG_ACTIVITY_NEW_TASK
-                appContext.startActivity(intent)
+                context.startActivity(intent)
                 false
             } else {
                 api.credentialsFile.delete()
@@ -50,50 +49,51 @@ class Plugin(appContext: Context, context: Context) : IPlugin {
         }
     }
 
-    override fun name() = name
+    override fun name() = NAME
 
     override fun mediaCategories(): List<String> = listOf(CATEGORIES, TRACKS, ARTISTS, ALBUMS, PLAYLISTS, SHOWS)
 
     override fun preferences(): List<Preference> = listOf(connectPreference)
 
-    override fun getMediaItems(mediaCategory: String, callback: Callback<List<MediaMetadataCompat>>, refresh: Boolean) {
-        when (mediaCategory) {
-            CATEGORIES -> callback.onResult(api.getCategories(refresh))
-            TRACKS -> callback.onResult(api.getUsersSavedTracks(refresh))
-            ARTISTS -> callback.onResult(api.getArtists(refresh))
-            ALBUMS -> callback.onResult(api.getAlbums(refresh))
-            PLAYLISTS -> callback.onResult(api.getUsersPlaylists(refresh))
-            SHOWS -> callback.onResult(api.getShows(refresh))
+    override fun getMediaItems(mediaCategory: String, refresh: Boolean): List<MediaItem> {
+        return when (mediaCategory) {
+            CATEGORIES -> api.getCategories(refresh)
+            TRACKS -> api.getUsersSavedTracks(refresh)
+            ARTISTS -> api.getArtists(refresh)
+            ALBUMS -> api.getAlbums(refresh)
+            PLAYLISTS -> api.getUsersPlaylists(refresh)
+            SHOWS -> api.getShows(refresh)
+            else -> emptyList()
         }
     }
 
     override fun getMediaItems(
         mediaCategory: String,
         path: String,
-        callback: Callback<List<MediaMetadataCompat>>,
         refresh: Boolean
-    ) {
-        when (mediaCategory) {
-            CATEGORIES -> callback.onResult(api.getCategoryPlaylist(path, refresh))
-            ARTISTS -> callback.onResult(api.getArtist(path, refresh))
-            ALBUMS -> callback.onResult(api.getAlbumTracks(path, refresh))
-            PLAYLISTS -> callback.onResult(api.getPlaylist(path, refresh))
-            SHOWS -> callback.onResult(api.getEpisodes(path, refresh))
+    ) : List<MediaItem> {
+        return when (mediaCategory) {
+            CATEGORIES -> api.getCategoryPlaylist(path, refresh)
+            ARTISTS -> api.getArtist(path, refresh)
+            ALBUMS -> api.getAlbumTracks(path, refresh)
+            PLAYLISTS -> api.getPlaylist(path, refresh)
+            SHOWS -> api.getEpisodes(path, refresh)
+            else -> emptyList()
         }
     }
 
-    override fun getMediaItems(mediaCategory: String, path: String, query: String, callback: Callback<List<MediaMetadataCompat>>, refresh: Boolean) {
-        callback.onResult(api.query(query, refresh))
+    override fun getMediaItems(mediaCategory: String, path: String, query: String, type: String, refresh: Boolean): List<MediaItem> {
+        return api.query(query, refresh)
     }
 
     override fun getIcon(): Bitmap = icon
 
-    override fun getMediaUrl(metadata: MediaMetadataCompat, callback: Callback<Pair<MediaMetadataCompat, MediaDataSource?>>) {
-        callback.onResult(Pair(metadata, api.streamUri(metadata.getString(MediaMetadataCompat.METADATA_KEY_MEDIA_URI))))
+    override fun getDataSource(mediaItem: MediaItem): MediaDataSource {
+        return api.streamUri(mediaItem.requestMetadata.mediaUri.toString())
     }
 
-    override fun favorite(id: String, callback: Callback<Boolean>) {
-        callback.onResult(api.saveTrack(id))
+    override fun favorite(id: String): Boolean {
+        return api.saveTrack(id)
     }
 
     private fun callback(callback: String) {
