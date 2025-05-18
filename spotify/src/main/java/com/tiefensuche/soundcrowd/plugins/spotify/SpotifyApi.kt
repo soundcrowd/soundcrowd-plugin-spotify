@@ -37,7 +37,7 @@ class SpotifyApi(private val context: Context) {
         }
     private var session: Session? = null
     internal val credentialsFile = File(context.filesDir.path + "/credentials.json")
-    internal val oauth = OAuth(KEYMASTER_CLIENT_ID, "soundcrowd://127.0.0.1/login")
+    internal val oauth = OAuth(KEYMASTER_CLIENT_ID, "http://127.0.0.1:5588/login")
     private val albumTracks = HashMap<String, List<Track>>()
 
     private fun createSession() {

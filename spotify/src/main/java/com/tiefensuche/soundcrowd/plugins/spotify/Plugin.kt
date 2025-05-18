@@ -14,6 +14,10 @@ import androidx.media3.common.MediaItem
 import androidx.preference.Preference
 import androidx.preference.SwitchPreference
 import com.tiefensuche.soundcrowd.plugins.IPlugin
+import java.io.BufferedReader
+import java.io.InputStreamReader
+import java.io.PrintWriter
+import java.net.ServerSocket
 
 class Plugin(context: Context) : IPlugin {
 
@@ -38,6 +42,7 @@ class Plugin(context: Context) : IPlugin {
         connectPreference.isChecked = api.credentialsFile.exists()
         connectPreference.onPreferenceChangeListener = Preference.OnPreferenceChangeListener { _, newValue ->
             if (newValue == true) {
+                startCallbackServer()
                 val intent = Intent(Intent.ACTION_VIEW, Uri.parse(api.oauth.authUrl))
                 intent.flags = FLAG_ACTIVITY_NEW_TASK
                 context.startActivity(intent)
@@ -101,5 +106,28 @@ class Plugin(context: Context) : IPlugin {
         connectPreference.isChecked = true
     }
 
-    override fun callbacks() = mapOf("127.0.0.1" to ::callback)
+    override fun callbacks() = mapOf("spotify" to ::callback)
+
+    private fun startCallbackServer() {
+        val thread = Thread(kotlinx.coroutines.Runnable {
+            val server = ServerSocket(5588)
+            val socket = server.accept()
+
+            val input = BufferedReader(InputStreamReader(socket.getInputStream()))
+            val data = input.readLine()
+            val location = data.substring(data.indexOf("/login"), data.indexOf(" HTTP/1.1"))
+
+            val dataOutputStream = PrintWriter(socket.getOutputStream())
+            dataOutputStream.write("HTTP/1.1 302 Found\r\n")
+            dataOutputStream.write("Location: soundcrowd://spotify$location\r\n")
+            dataOutputStream.write("\r\n\r\n")
+            dataOutputStream.flush()
+
+            input.close()
+            dataOutputStream.close()
+            socket.close()
+            server.close()
+        })
+        thread.start()
+    }
 }
