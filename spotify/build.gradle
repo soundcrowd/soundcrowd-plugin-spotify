@@ -30,7 +30,7 @@ android {
 dependencies {
     implementation 'com.github.soundcrowd:soundcrowd-plugin:v1.0.0'
     implementation 'com.github.0xf4b1:spotify-kt:v0.1'
-    implementation 'xyz.gianlu.librespot:librespot-lib:1.6.4'
+    implementation 'com.github.librespot-org.librespot-java:librespot-lib:90978c1ce6'
 }
 
 repositories {

@@ -64,7 +64,7 @@ class SpotifyApi(private val context: Context) {
             createSession()
         }
         session?.let {
-            return "Bearer " + it.tokens().getToken("user-library-read", "user-library-modify", "user-follow-read").accessToken
+            return "Bearer " + it.tokens().token.accessToken
         } ?: throw IllegalStateException("No session!")
     }
 
