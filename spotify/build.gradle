@@ -6,9 +6,9 @@ plugins {
 android {
     defaultConfig {
         namespace 'com.tiefensuche.soundcrowd.plugins.spotify'
-        compileSdk 35
+        compileSdk 36
         minSdk 21
-        targetSdk 35
+        targetSdk 36
         consumerProguardFiles 'proguard-rules.pro'
     }
 
@@ -29,8 +29,8 @@ android {
 
 dependencies {
     implementation 'com.github.soundcrowd:soundcrowd-plugin:v1.0.0'
-    implementation 'com.github.0xf4b1:spotify-kt:v0.1'
-    implementation 'com.github.librespot-org.librespot-java:librespot-lib:90978c1ce6'
+    implementation 'com.github.0xf4b1:spotify-kt:aedbe793e7'
+    implementation 'com.github.librespot-org.librespot-java:librespot-lib:52a8c24215'
 }
 
 repositories {
