@@ -124,7 +124,7 @@ class SpotifyApi(private val context: Context) {
             return result
         }
 
-        return tracks.map {
+        return tracks.filter { it.playable }.map {
             MediaItemUtils.createMediaItem(
                 it.id,
                 Uri.parse(it.url),
